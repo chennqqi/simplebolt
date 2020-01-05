@@ -4,6 +4,7 @@
 package simplebolt
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"strconv"
@@ -103,7 +104,7 @@ func (l *List) Add(value string) error {
 }
 
 // Get all elements of a list
-func (l *List) GetAll() (results []string, err error) {
+func (l *List) All() (results []string, err error) {
 	if l.name == nil {
 		return nil, ErrDoesNotExist
 	}
@@ -120,7 +121,7 @@ func (l *List) GetAll() (results []string, err error) {
 }
 
 // Get the last element of a list
-func (l *List) GetLast() (result string, err error) {
+func (l *List) Last() (result string, err error) {
 	if l.name == nil {
 		return "", ErrDoesNotExist
 	}
@@ -138,7 +139,7 @@ func (l *List) GetLast() (result string, err error) {
 }
 
 // Get the last N elements of a list
-func (l *List) GetLastN(n int) (results []string, err error) {
+func (l *List) LastN(n int) (results []string, err error) {
 	if l.name == nil {
 		return nil, ErrDoesNotExist
 	}
@@ -261,7 +262,7 @@ func (s *Set) Has(value string) (exists bool, err error) {
 }
 
 // Get all values of the set
-func (s *Set) GetAll() (values []string, err error) {
+func (s *Set) All() (values []string, err error) {
 	if s.name == nil {
 		return nil, ErrDoesNotExist
 	}
@@ -361,7 +362,7 @@ func (h *HashMap) Set(elementid, key, value string) (err error) {
 }
 
 // Get all elementid's for all hash elements
-func (h *HashMap) GetAll() (results []string, err error) {
+func (h *HashMap) All() (results []string, err error) {
 	if h.name == nil {
 		return nil, ErrDoesNotExist
 	}
@@ -424,6 +425,28 @@ func (h *HashMap) Has(elementid, key string) (found bool, err error) {
 		}
 		return nil // Return from View function
 	})
+}
+
+// Check if a given elementid + key is in the hash map
+func (h *HashMap) Keys(owner string) ([]string, error) {
+	if h.name == nil {
+		return nil, ErrDoesNotExist
+	}
+	var keys []string
+	err := (*bolt.DB)(h.db).View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket(h.name)
+		if bucket == nil {
+			return ErrBucketNotFound
+		}
+		bucket.ForEach(func(k, v []byte) error {
+			if bytes.HasPrefix(k, []byte(owner+":")) {
+				keys = append(keys, string(k))
+			}
+			return nil
+		})
+		return nil // Return from View function
+	})
+	return keys, err
 }
 
 // Check if a given elementid exists as a hash map at all
